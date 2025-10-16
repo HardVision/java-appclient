@@ -21,19 +21,26 @@ public class Main {
         Conexao conexao = new Conexao();
         JdbcTemplate template = new JdbcTemplate(conexao.getConexao());
 
-        template.execute("DROP TABLE IF EXISTS rede");
-
         template.execute("""
-                CREATE TABLE rede (
-                    id INT PRIMARY KEY AUTO_INCREMENT,
-                    interface_nome VARCHAR(50) NOT NULL,
-                    ipv4 VARCHAR(15),
-                    bytes_recebidos DECIMAL(15, 2),
-                    bytes_enviados DECIMAL(15, 2),
-                    pacotes_recebidos DECIMAL(15, 2),
-                    pacotes_enviados DECIMAL(15, 2),
-                    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
+                        CREATE TABLE IF NOT EXISTS logMonitoramentoRede (
+                            idMonitoramentoRede INT AUTO_INCREMENT,
+                            fkAlertaRede INT,
+                            fkComponenteRede INT,
+                            fkMaquina INT,
+                            fkMetricaRede INT,
+                            ipv4 char(15) NOT NULL,
+                            velocidadeMbps decimal(10,2) NOT NULL,
+                            mbEnviados decimal(10,2) NOT NULL,
+                            mbRecebidos decimal(10,2) NOT NULL,
+                            pacotesEnviados decimal(10,2) NOT NULL,
+                            pacotesRecebidos decimal(10,2) NOT NULL,
+                            dtHora TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+                            CONSTRAINT pkLogMonitoramentoRede PRIMARY KEY (idMonitoramentoRede, fkMaquina, fkComponenteRede, fkAlertaRede),
+                            FOREIGN KEY (fkMaquina) REFERENCES maquina(idMaquina),
+                            FOREIGN KEY (fkComponenteRede) REFERENCES componenteRede(idComponenteRede),
+                            FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede),
+                            FOREIGN KEY (fkAlertaRede) REFERENCES alertaRede(idAlertaRede)
+                        );
                 """);
 
         System.out.println("""
@@ -70,29 +77,83 @@ public class Main {
                         String linha6 = formatarLinha("Pacotes enviados: " + Conversor.formatarBytes(redeInterface.getPacotesEnviados()), largura);
 
                         System.out.println("""
-                                ╔════════════════════════════════════════════════════════════════╗
-                                ║ %s ║
-                                ║ %s ║
-                                ║ %s ║
-                                ║ %s ║
-                                ║ %s ║
-                                ║ %s ║
-                                ║ %s ║
-                                ╚════════════════════════════════════════════════════════════════╝
-                                """.formatted(linha0, linha1, linha2, linha3, linha4, linha5, linha6));
+                        ╔════════════════════════════════════════════════════════════════╗
+                        ║ %s ║
+                        ║ %s ║
+                        ║ %s ║
+                        ║ %s ║
+                        ║ %s ║
+                        ║ %s ║
+                        ║ %s ║
+                        ╚════════════════════════════════════════════════════════════════╝
+                        """.formatted(linha0, linha1, linha2, linha3, linha4, linha5, linha6));
 
+                        // Pegando o MAC e nome da interface
+                        String macAddress = redeInterface.getEnderecoMac();
+                        String nomeInterface = redeInterface.getNome();
+
+                        // fkMaquina: busca pela máquina com o MAC correspondente
+                        Integer fkMaquina = template.queryForObject(
+                                "SELECT idMaquina FROM maquina WHERE macAddress = ?",
+                                Integer.class,
+                                macAddress
+                        );
+
+                        // fkComponenteRede: busca pelo componente de rede com o nome da interface
+                        Integer fkComponenteRede = template.queryForObject(
+                                "SELECT idComponenteRede FROM componenteRede WHERE nome = ?",
+                                Integer.class,
+                                nomeInterface
+                        );
+
+                        // Definir a métrica de rede dinamicamente
+                        String nomeMetrica;
+                        long bytesEnviados = redeInterface.getBytesEnviados();
+                        long bytesRecebidos = redeInterface.getBytesRecebidos();
+                        long pacotesTotal = redeInterface.getPacotesEnviados() + redeInterface.getPacotesRecebidos();
+
+                        if (pacotesTotal < 10) {
+                            nomeMetrica = "Latência";
+                        } else if (bytesRecebidos >= bytesEnviados) {
+                            nomeMetrica = "Velocidade de Download";
+                        } else {
+                            nomeMetrica = "Velocidade de Upload";
+                        }
+
+                        Integer fkMetricaRede = template.queryForObject(
+                                "SELECT idMetricaRede FROM metricaRede WHERE nome = ?",
+                                Integer.class,
+                                nomeMetrica
+                        );
+
+                        // fkAlertaRede baseado na métrica
+                        Integer fkAlertaRede = template.queryForObject(
+                                "SELECT idAlertaRede FROM alertaRede WHERE fkMetricaRede = ?",
+                                Integer.class,
+                                fkMetricaRede
+                        );
+
+                        Double mbEnviados = bytesEnviados / 1024.0 / 1024.0;
+                        Double mbRecebidos = bytesRecebidos / 1024.0 / 1024.0;
+                        Long pacotesEnviados = redeInterface.getPacotesEnviados();
+                        Long pacotesRecebidos = redeInterface.getPacotesRecebidos();
                         String ipv4 = redeInterface.getEnderecoIpv4().isEmpty() ? "" : redeInterface.getEnderecoIpv4().get(0);
 
                         template.update("""
-                                        INSERT INTO rede (
-                                            interface_nome, ipv4, bytes_recebidos, bytes_enviados, pacotes_recebidos, pacotes_enviados
-                                        ) VALUES (?, ?, ?, ?, ?, ?);""",
-                                redeInterface.getNome(),
+                                INSERT INTO logMonitoramentoRede (
+                                    fkMaquina, fkComponenteRede, fkMetricaRede, fkAlertaRede,
+                                    ipv4, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                                """,
+                                fkMaquina,
+                                fkComponenteRede,
+                                fkMetricaRede,
+                                fkAlertaRede,
                                 ipv4,
-                                redeInterface.getBytesRecebidos(),
-                                redeInterface.getBytesEnviados(),
-                                redeInterface.getPacotesRecebidos(),
-                                redeInterface.getPacotesEnviados()
+                                mbEnviados,
+                                mbRecebidos,
+                                pacotesEnviados,
+                                pacotesRecebidos
                         );
                     }
                 }
@@ -103,7 +164,7 @@ public class Main {
         }
 
         List<school.sptech.Rede> leituras_interfaces = template
-                .query("SELECT * FROM rede", new BeanPropertyRowMapper<>(school.sptech.Rede.class));
+                .query("SELECT * FROM logMonitoramentoRede", new BeanPropertyRowMapper<>(school.sptech.Rede.class));
     }
 
     private static String formatarLinha(String texto, int largura) {
