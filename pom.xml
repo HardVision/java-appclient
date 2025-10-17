@@ -31,11 +31,6 @@
         <version>8.0.33</version>
     </dependency>
     <dependency>
-        <groupId>io.github.cdimascio</groupId>
-        <artifactId>dotenv-java</artifactId>
-        <version>3.0.0</version>
-    </dependency>
-    <dependency>
         <groupId>com.github.britooo</groupId>
         <artifactId>looca-api</artifactId>
         <version>2.2.0</version>

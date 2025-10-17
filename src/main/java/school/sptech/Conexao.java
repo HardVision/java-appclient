@@ -1,6 +1,5 @@
 package school.sptech;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import org.apache.commons.dbcp2.BasicDataSource;
 
 import javax.sql.DataSource;
