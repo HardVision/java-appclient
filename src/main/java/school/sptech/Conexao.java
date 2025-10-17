@@ -12,12 +12,10 @@ public class Conexao {
 
     public Conexao() {
 
-        Dotenv dotenv = Dotenv.load();
-
         BasicDataSource basicDataSource = new BasicDataSource();
-        basicDataSource.setUrl(dotenv.get("DB_URL"));
-        basicDataSource.setUsername(dotenv.get("DB_USER"));
-        basicDataSource.setPassword(dotenv.get("DB_PASSWORD"));
+        basicDataSource.setUrl(System.getenv("DB_URL"));
+        basicDataSource.setUsername(System.getenv("DB_USER"));
+        basicDataSource.setPassword(System.getenv("DB_PASS"));
         basicDataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
 
         this.conexao = basicDataSource;
