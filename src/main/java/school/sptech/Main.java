@@ -69,160 +69,158 @@ public class Main {
         System.out.println("API INICIADA - CONECTANDO COM O BANCO DE DADOS HARDVISION\n\n");
 
         String scriptSQL = """
-                CREATE TABLE IF NOT EXISTS endereco (
-                    idEndereco INT PRIMARY KEY auto_increment,
-                    rua VARCHAR(45) NOT NULL,
-                    numero VARCHAR(45) NOT NULL,
-                    logradouro VARCHAR(45) NOT NULL,
-                    cidade VARCHAR(45) NOT NULL,
-                    uf VARCHAR(2) NOT NULL,
-                    cep CHAR(8) NOT NULL,
-                    complemento VARCHAR(45)
+            CREATE TABLE IF NOT EXISTS endereco (
+                idEndereco INT PRIMARY KEY auto_increment,
+                rua VARCHAR(45) NOT NULL,
+                numero VARCHAR(45) NOT NULL,
+                logradouro VARCHAR(45) NOT NULL,
+                cidade VARCHAR(45) NOT NULL,
+                uf VARCHAR(2) NOT NULL,
+                cep CHAR(8) NOT NULL,
+                complemento VARCHAR(45)
+            );
+
+            CREATE TABLE IF NOT EXISTS empresa (
+                idEmpresa INT PRIMARY KEY auto_increment,
+                razaoSocial VARCHAR(45) NOT NULL,
+                nomeFantasia varchar(45) not null,
+                cnpj CHAR(14) NOT NULL UNIQUE,
+                fkEndereco INT,
+                token char(5),
+                FOREIGN KEY (fkEndereco) REFERENCES endereco(idEndereco)
+            );
+
+            CREATE TABLE IF NOT EXISTS sistemaOperacional (
+                idSistema INT PRIMARY KEY auto_increment,
+                tipo VARCHAR(45) NOT NULL,
+                versao VARCHAR(50) NOT NULL,
+                distribuicao varchar(45) not NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS maquina (
+                idMaquina INT auto_increment,
+                fkEmpresa INT,
+                fkSistema INT,
+                constraint pkMaq PRIMARY KEY (idMaquina, fkSistema),
+                macAddress char(17) NOT NULL UNIQUE,
+                localizacao varchar(45),
+                FOREIGN KEY (fkEmpresa) REFERENCES empresa(idEmpresa),
+                FOREIGN KEY (fkSistema) REFERENCES sistemaOperacional(idSistema)
+            );
+
+            CREATE TABLE IF NOT EXISTS tipo (
+                idTipo INT PRIMARY KEY auto_increment,
+                permissao VARCHAR(45) NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS usuario (
+                idUsuario INT auto_increment,
+                nome VARCHAR(45) NOT NULL,
+                email VARCHAR(45) NOT NULL UNIQUE,
+                senha VARCHAR(45) NOT NULL,
+                cpf char(11) not null unique,
+                telefone char(13) not null unique,
+                fkEmpresa INT,
+                fkTipo int,
+                CONSTRAINT pkUsu primary key (idUsuario, fkEmpresa),
+                FOREIGN KEY (fkEmpresa) REFERENCES empresa(idEmpresa),
+                FOREIGN KEY (fkTipo) REFERENCES tipo(idTipo)
+            );
+
+            CREATE TABLE IF NOT EXISTS metricaComponente (
+                idMetrica INT PRIMARY KEY auto_increment,
+                nome varchar(45) not null,
+                medida varchar(45) not NULL,
+                min float not null,
+                max float not null
+            );
+
+            CREATE TABLE IF NOT EXISTS metricaRede (
+                idMetricaRede INT PRIMARY KEY auto_increment,
+                nome VARCHAR(45) NOT NULL,
+                medida varchar(45) not NULL,
+                min FLOAT NOT NULL,
+                max float not NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS componenteRede (
+                idComponenteRede INT auto_increment,
+                nome varchar(45) not null,
+                interfaceRede varchar(45) not null,
+                fkMetricaRede int,
+                constraint pkCompRede PRIMARY key (idComponenteRede, fkMetricaRede),
+                FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede)
+            );
+
+            CREATE TABLE IF NOT EXISTS componente (
+                idComponente INT auto_increment,
+                tipo VARCHAR(45) NOT NULL,
+                modelo varchar(45) NOT NULL,
+                fabricante VARCHAR(45) NOT NULL,
+                capacidade varchar(45) NOT NULL,
+                fkMetrica int,
+                CONSTRAINT pkComp PRIMARY KEY (idComponente, fkMetrica),
+                FOREIGN KEY (fkMetrica) REFERENCES metricaComponente(idMetrica)
+            );
+
+            CREATE TABLE IF NOT EXISTS alertaComponente (
+                idAlerta INT auto_increment,
+                fkMetrica INT,
+                constraint pkAlertaComp primary key(idAlerta, fkMetrica),
+                dtHora timestamp default current_timestamp(),
+                estado varchar(45) not NULL,
+                FOREIGN KEY (fkMetrica) REFERENCES metricaComponente(idMetrica)
+            );
+
+            CREATE TABLE IF NOT EXISTS alertaRede (
+                idAlertaRede INT auto_increment,
+                fkMetricaRede INT,
+                constraint pkAlertaCompRede primary key(idAlertaRede, fkMetricaRede),
+                dtHora timestamp default current_timestamp(),
+                estado varchar(45) not NULL,
+                FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede)
+            );
+
+            CREATE TABLE IF NOT EXISTS logMonitoramento (
+                idMonitoramento INT auto_increment,
+                fkMaquina int,
+                fkComponente int,
+                fkMetrica int,
+                fkAlerta int,
+                constraint pkLogMonitoramento
+                primary key(idMonitoramento,
+                fkMaquina, fkComponente, fkMetrica),
+                valor INT NOT NULL,
+                descricao VARCHAR(255) NOT NULL,
+                dtHora timestamp default CURRENT_TIMESTAMP(),
+                FOREIGN KEY (fkMaquina) REFERENCES maquina(idMaquina),
+                FOREIGN KEY (fkComponente) REFERENCES componente(idComponente),
+                FOREIGN KEY (fkMetrica) REFERENCES metricaComponente(idMetrica),
+                FOREIGN KEY (fkAlerta) REFERENCES alertaComponente(idAlerta)
                 );
-                
-                CREATE TABLE IF NOT EXISTS empresa (
-                    idEmpresa INT PRIMARY KEY auto_increment,
-                    razaoSocial VARCHAR(45) NOT NULL,
-                    nomeFantasia varchar(45) not null,
-                    cnpj CHAR(14) NOT NULL UNIQUE,
-                    fkEndereco INT,
-                    telefone VARCHAR(15) NOT NULL,
-                    email VARCHAR(100) NOT NULL,
-                    token char(5),
-                    FOREIGN KEY (fkEndereco) REFERENCES endereco(idEndereco)
-                );
-                
-                CREATE TABLE IF NOT EXISTS sistemaOperacional (
-                    idSistema INT PRIMARY KEY auto_increment,
-                    tipo VARCHAR(45) NOT NULL,
-                    versao VARCHAR(50) NOT NULL,
-                    distribuicao varchar(45) not NULL
-                );
-                
-                CREATE TABLE IF NOT EXISTS maquina (
-                    idMaquina INT auto_increment,
-                    fkEmpresa INT,
-                    fkSistema INT,
-                    constraint pkMaq PRIMARY KEY (idMaquina, fkSistema),
-                    macAddress char(17) NOT NULL UNIQUE,
-                    localizacao varchar(45),
-                    FOREIGN KEY (fkEmpresa) REFERENCES empresa(idEmpresa),
-                    FOREIGN KEY (fkSistema) REFERENCES sistemaOperacional(idSistema)
-                );
-                
-                CREATE TABLE IF NOT EXISTS tipo (
-                    idTipo INT PRIMARY KEY auto_increment,
-                    permissao VARCHAR(45) NOT NULL
-                );
-                
-                CREATE TABLE IF NOT EXISTS usuario (
-                    idUsuario INT auto_increment,
-                    nome VARCHAR(45) NOT NULL,
-                    email VARCHAR(45) NOT NULL UNIQUE,
-                    senha VARCHAR(45) NOT NULL,
-                    cpf char(11) not null unique,
-                    telefone char(13) not null unique,
-                    fkEmpresa INT,
-                    fkTipo int,
-                    CONSTRAINT pkUsu primary key (idUsuario, fkEmpresa),
-                    FOREIGN KEY (fkEmpresa) REFERENCES empresa(idEmpresa),
-                    FOREIGN KEY (fkTipo) REFERENCES tipo(idTipo)
-                );
-                
-                CREATE TABLE IF NOT EXISTS metricaComponente (
-                    idMetrica INT PRIMARY KEY auto_increment,
-                    nome varchar(45) not null,
-                    medida varchar(45) not NULL,
-                    min float not null,
-                    max float not null
-                );
-                
-                CREATE TABLE IF NOT EXISTS metricaRede (
-                    idMetricaRede INT PRIMARY KEY auto_increment,
-                    nome VARCHAR(45) NOT NULL,
-                    medida varchar(45) not NULL,
-                    min FLOAT NOT NULL,
-                    max float not NULL
-                );
-                
-                CREATE TABLE IF NOT EXISTS componenteRede (
-                    idComponenteRede INT auto_increment,
-                    nome varchar(45) not null,
-                    interfaceRede varchar(45) not null,
-                    fkMetricaRede int,
-                    constraint pkCompRede PRIMARY key (idComponenteRede, fkMetricaRede),
-                    FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede)
-                );
-                
-                CREATE TABLE IF NOT EXISTS componente (
-                    idComponente INT auto_increment,
-                    tipo VARCHAR(45) NOT NULL,
-                    modelo varchar(45) NOT NULL,
-                    fabricante VARCHAR(45) NOT NULL,
-                    capacidade varchar(45) NOT NULL,
-                    fkMetrica int,
-                    CONSTRAINT pkComp PRIMARY KEY (idComponente, fkMetrica),
-                    FOREIGN KEY (fkMetrica) REFERENCES metricaComponente(idMetrica)
-                );
-                
-                CREATE TABLE IF NOT EXISTS alertaComponente (
-                    idAlerta INT auto_increment,
-                    fkMetrica INT,
-                    constraint pkAlertaComp primary key(idAlerta, fkMetrica),
-                    dtHora timestamp default current_timestamp(),
-                    estado varchar(45) not NULL,
-                    FOREIGN KEY (fkMetrica) REFERENCES metricaComponente(idMetrica)
-                );
-                
-                CREATE TABLE IF NOT EXISTS alertaRede (
-                    idAlertaRede INT auto_increment,
-                    fkMetricaRede INT,
-                    constraint pkAlertaCompRede primary key(idAlertaRede, fkMetricaRede),
-                    dtHora timestamp default current_timestamp(),
-                    estado varchar(45) not NULL,
-                    FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede)
-                );
-                
-                CREATE TABLE IF NOT EXISTS logMonitoramento (
-                    idMonitoramento INT auto_increment,
-                    fkMaquina int,
-                    fkComponente int,
-                    fkMetrica int,
-                    fkAlerta int,
-                    constraint pkLogMonitoramento
-                    primary key(idMonitoramento,
-                    fkMaquina, fkComponente, fkMetrica),
-                    valor INT NOT NULL,
-                    descricao VARCHAR(255) NOT NULL,
-                    dtHora timestamp default CURRENT_TIMESTAMP(),
-                    FOREIGN KEY (fkMaquina) REFERENCES maquina(idMaquina),
-                    FOREIGN KEY (fkComponente) REFERENCES componente(idComponente),
-                    FOREIGN KEY (fkMetrica) REFERENCES metricaComponente(idMetrica),
-                    FOREIGN KEY (fkAlerta) REFERENCES alertaComponente(idAlerta)
-                    );
-                
-                CREATE TABLE IF NOT EXISTS logMonitoramentoRede (
-                    idMonitoramentoRede INT auto_increment,
-                    fkAlertaRede INT,
-                    fkComponenteRede int,
-                    fkMaquina int,
-                    fkMetricaRede int ,
-                    constraint pkLogMonitoramentoRede
-                    primary key(idMonitoramentoRede,
-                    fkMaquina, fkComponenteRede, fkAlertaRede),
-                    ipv4 char(15) NOT NULL,
-                    throughput decimal(10,2) NOT NULL,
-                    mbEnviados decimal(10,2) not NULL,
-                    mbRecebidos decimal(10,2) not NULL,
-                    pacotesEnviados decimal(10,2) not null,
-                    pacotesRecebidos decimal(10,2)not null,
-                    dtHora timestamp default CURRENT_TIMESTAMP(),
-                    FOREIGN KEY (fkMaquina) REFERENCES maquina(idMaquina),
-                    FOREIGN KEY (fkComponenteRede) REFERENCES componenteRede(idComponenteRede),
-                    FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede),
-                    FOREIGN KEY (fkAlertaRede) REFERENCES alertaRede(idAlertaRede)
-                );
-                """;
+
+            CREATE TABLE IF NOT EXISTS logMonitoramentoRede (
+                idMonitoramentoRede INT auto_increment,
+                fkAlertaRede INT,
+                fkComponenteRede int,
+                fkMaquina int,
+                fkMetricaRede int ,
+                constraint pkLogMonitoramentoRede
+                primary key(idMonitoramentoRede,
+                fkMaquina, fkComponenteRede, fkAlertaRede),
+                ipv4 char(15) NOT NULL,
+                throughput decimal(10,2) NOT NULL,
+                mbEnviados decimal(10,2) not NULL,
+                mbRecebidos decimal(10,2) not NULL,
+                pacotesEnviados decimal(10,2) not null,
+                pacotesRecebidos decimal(10,2)not null,
+                dtHora timestamp default CURRENT_TIMESTAMP(),
+                FOREIGN KEY (fkMaquina) REFERENCES maquina(idMaquina),
+                FOREIGN KEY (fkComponenteRede) REFERENCES componenteRede(idComponenteRede),
+                FOREIGN KEY (fkMetricaRede) REFERENCES metricaRede(idMetricaRede),
+                FOREIGN KEY (fkAlertaRede) REFERENCES alertaRede(idAlertaRede)
+            );
+            """;
 
         try {
             for (String comando : scriptSQL.split(";")) {
@@ -238,41 +236,41 @@ public class Main {
         }
 
         String scriptDML = """
-                INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (1, 'Rua das Flores', '123', 'Avenida', 'São Paulo', 'SP', '12345678', 'Apto 101');
-                INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (2, 'Rua da Paz', '456', 'Beco', 'Rio de Janeiro', 'RJ', '23456789', 'Casa 10');
-                INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (3, 'Avenida Brasil', '789', 'Centro', 'Belo Horizonte', 'MG', '34567890', NULL);
-                
-                INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, telefone, email, token) VALUES (1, 'Empresa A Ltda', 'Empresa A', '12345678000199', 1, '1123456789', 'contato@empresaA.com', 'ABCDE');
-                INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, telefone, email, token) VALUES (2, 'Empresa B S.A.', 'Empresa B', '98765432000110', 2, '21987654321', 'contato@empresaB.com', 'XYZ12');
-                INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, telefone, email, token) VALUES (3, 'Empresa C', 'Empresa C', '19283746000188', 3, '3134567890', 'contato@empresaC.com', 'PQR34');
-                
-                INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (1, 'Linux', '20.04', 'Ubuntu');
-                INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (2, 'Windows', '10 Pro', 'Microsoft');
-                INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (3, 'MacOS', '11.3', 'Apple');
-                
-                INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (1, 1, 1, '00:1A:2B:3C:4D:5E', 'Sala 101');
-                INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (2, 2, 2, '00:5F:6G:7H:8I:9J', 'Sala 202');
-                INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (3, 3, 3, '01:2A:3B:4C:5D:6E', 'Sala 303');
-                
-                INSERT IGNORE INTO tipo (idTipo, permissao) VALUES (1, 'Admin');
-                INSERT IGNORE INTO tipo (idTipo, permissao) VALUES (2, 'Membro');
-                
-                INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (1, 'Uso de CPU', '%', 20, 85);
-                INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (2, 'Uso de Memória', '%', 5, 75);
-                INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (3, 'Uso de Disco', '%', 0, 90);
-                
-                INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (1, 'Velocidade de Download', 'Mbps', 0, 1000);
-                INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (2, 'Velocidade de Upload', 'Mbps', 0, 1000);
-                INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (3, 'Latência', 'ms', 0, 300);
-                
-                INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (1, 1, 'Normal');
-                INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (2, 2, 'Atenção');
-                INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (3, 3, 'Crítico');
-                
-                INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (1, 'Adaptador Ethernet Intel', 'eth0', 1);
-                INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (2, 'Placa de Rede Wi-Fi TP-Link', 'wlan0', 2);
-                INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (3, 'Interface Virtual VPN', 'tun0', 3);
-                """;
+            INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (1, 'Rua das Flores', '123', 'Avenida', 'São Paulo', 'SP', '12345678', 'Apto 101');
+            INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (2, 'Rua da Paz', '456', 'Beco', 'Rio de Janeiro', 'RJ', '23456789', 'Casa 10');
+            INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (3, 'Avenida Brasil', '789', 'Centro', 'Belo Horizonte', 'MG', '34567890', NULL);
+
+            INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, token) VALUES (1, 'Empresa A Ltda', 'Empresa A', '12345678000199', 1, 'ABCDE');
+            INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, token) VALUES (2, 'Empresa B S.A.', 'Empresa B', '98765432000110', 2, 'XYZ12');
+            INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, token) VALUES (3, 'Empresa C', 'Empresa C', '19283746000188', 3, 'PQR34');
+
+            INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (1, 'Linux', '20.04', 'Ubuntu');
+            INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (2, 'Windows', '10 Pro', 'Microsoft');
+            INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (3, 'MacOS', '11.3', 'Apple');
+
+            INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (1, 1, 1, '00:1A:2B:3C:4D:5E', 'Sala 101');
+            INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (2, 2, 2, '00:5F:6G:7H:8I:9J', 'Sala 202');
+            INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (3, 3, 3, '01:2A:3B:4C:5D:6E', 'Sala 303');
+
+            INSERT IGNORE INTO tipo (idTipo, permissao) VALUES (1, 'Admin');
+            INSERT IGNORE INTO tipo (idTipo, permissao) VALUES (2, 'Membro');
+
+            INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (1, 'Uso de CPU', '%', 20, 85);
+            INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (2, 'Uso de Memória', '%', 5, 75);
+            INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (3, 'Uso de Disco', '%', 0, 90);
+
+            INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (1, 'Velocidade de Download', 'Mbps', 0, 1000);
+            INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (2, 'Velocidade de Upload', 'Mbps', 0, 1000);
+            INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (3, 'Latência', 'ms', 0, 300);
+
+            INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (1, 1, 'Normal');
+            INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (2, 2, 'Atenção');
+            INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (3, 3, 'Crítico');
+
+            INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (1, 'Adaptador Ethernet Intel', 'eth0', 1);
+            INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (2, 'Placa de Rede Wi-Fi TP-Link', 'wlan0', 2);
+            INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (3, 'Interface Virtual VPN', 'tun0', 3);
+            """;
 
         try {
             for (String comando : scriptDML.split(";")) {
@@ -292,13 +290,13 @@ public class Main {
                 \\ \\ \\-./\\ \\  \\ \\ \\/\\ \\  \\ \\ \\-.  \\  \\ \\ \\  \\/_/\\ \\/ \\ \\ \\/\\ \\  \\ \\  __<   \\ \\  __ \\  \\ \\ \\-./\\ \\  \\ \\  __\\   \\ \\ \\-.  \\  \\/_/\\ \\/ \\ \\ \\/\\ \\
                  \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\ \\_\\\\"\\_\\  \\ \\_\\    \\ \\_\\  \\ \\_____\\  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\ \\_\\\\"\\_\\    \\ \\_\\  \\ \\_____\\
                   \\/_/  \\/_/   \\/_____/   \\/_/ \\/_/   \\/_/     \\/_/   \\/_____/   \\/_/ /_/   \\/_/\\/_/   \\/_/  \\/_/   \\/_____/   \\/_/ \\/_/     \\/_/   \\/_____/
-                
+
                  __  __     ______     ______     _____     __   __   __     ______     __     ______     __   __
                 /\\ \\_\\ \\   /\\  __ \\   /\\  == \\   /\\  __-.  /\\ \\ / /  /\\ \\   /\\  ___\\   /\\ \\   /\\  __ \\   /\\ "-.\\ \\
                 \\ \\  __ \\  \\ \\  __ \\  \\ \\  __<   \\ \\ \\/\\ \\ \\ \\ \\'/   \\ \\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\/\\ \\  \\ \\ \\-.  \\
                  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\  \\ \\____-  \\ \\__|    \\ \\_\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\  \\ \\_\\\\"\\_\\
                   \\/_/\\/_/   \\/_/\\/_/   \\/_/ /_/   \\/____/   \\/_/      \\/_/   \\/_____/   \\/_/   \\/_____/   \\/_/ \\/_/
-                
+
                 ╔════════════════════════════════════════════════════════════════╗
                 ║                      MONITORAMENTO DE REDE                     ║
                 ╚════════════════════════════════════════════════════════════════╝
@@ -390,12 +388,12 @@ public class Main {
                             Double pacotesRecebidos = (double) redeInterface.getPacotesRecebidos();
 
                             template.update("""
-                                            INSERT INTO logMonitoramentoRede (
-                                                fkMaquina, fkComponenteRede, fkMetricaRede, fkAlertaRede,
-                                                ipv4, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos,
-                                                throughput
-                                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                                            """,
+                                INSERT INTO logMonitoramentoRede (
+                                    fkMaquina, fkComponenteRede, fkMetricaRede, fkAlertaRede,
+                                    ipv4, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos,
+                                    throughput
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                                """,
                                     fkMaquina,
                                     fkComponenteRede,
                                     fkMetricaRede,
@@ -418,17 +416,17 @@ public class Main {
                             String linha7 = formatarLinha("Throughput (Mbps): " + String.format("%.2f", throughputMbps), largura);
 
                             System.out.println("""
-                                    ╔════════════════════════════════════════════════════════════════╗
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ║ %s ║
-                                    ╚════════════════════════════════════════════════════════════════╝
-                                    """.formatted(linha0, linha1, linha2, linha3, linha4, linha5, linha6, linha7));
+                                ╔════════════════════════════════════════════════════════════════╗
+                                ║ %s ║
+                                ║ %s ║
+                                ║ %s ║
+                                ║ %s ║
+                                ║ %s ║
+                                ║ %s ║
+                                ║ %s ║
+                                ║ %s ║
+                                ╚════════════════════════════════════════════════════════════════╝
+                                """.formatted(linha0, linha1, linha2, linha3, linha4, linha5, linha6, linha7));
 
                         } else {
                             System.err.println(">>> ERRO: Uma FK crucial é nula (FKs Metricas/Alertas, Máquina ou Componente). Verificar se as tabelas estão populadas.");
@@ -440,18 +438,12 @@ public class Main {
                 System.err.println("\n\n--- ERRO CRÍTICO: METRICA OU ALERTA NÃO ENCONTRADO NA ITERAÇÃO " + leituraAtual + " ---");
                 System.err.println("Causa: Este erro foi corrigido com a alteração das constantes. Se ainda ocorrer, verifique a tabela 'maquina' ou 'componenteRede'.");
                 System.err.println("Mensagem: " + e.getMessage());
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                }
+                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
             } catch (DataAccessException e) {
                 System.err.println("\n--- ERRO CRÍTICO DE BANCO DE DADOS NA ITERAÇÃO " + leituraAtual + " ---");
                 System.err.println("Mensagem: " + e.getMessage());
                 e.printStackTrace();
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                }
+                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
             } catch (InterruptedException e) {
                 System.err.println("A thread de monitoramento foi interrompida.");
                 Thread.currentThread().interrupt();
