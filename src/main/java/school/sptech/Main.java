@@ -388,23 +388,23 @@ public class Main {
                             Double pacotesRecebidos = (double) redeInterface.getPacotesRecebidos();
 
                             template.update("""
-                                INSERT INTO logMonitoramentoRede (
-                                    fkMaquina, fkComponenteRede, fkMetricaRede, fkAlertaRede,
-                                    ipv4, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos,
-                                    throughput
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                                """,
+                            INSERT INTO logMonitoramentoRede (
+                            fkMaquina, fkComponenteRede, fkMetricaRede, fkAlertaRede,
+                            ipv4, velocidadeMbps, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                                 """,
                                     fkMaquina,
                                     fkComponenteRede,
                                     fkMetricaRede,
                                     fkAlertaRede,
                                     ipv4,
+                                    throughputMbps,
                                     mbEnviados,
                                     mbRecebidos,
                                     pacotesEnviados,
-                                    pacotesRecebidos,
-                                    throughputMbps
+                                    pacotesRecebidos
                             );
+
 
                             String linha0 = formatarLinha("Leitura " + leituraAtual, largura);
                             String linha1 = formatarLinha("Interface: " + nomeInterface, largura);

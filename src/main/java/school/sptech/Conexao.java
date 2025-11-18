@@ -12,10 +12,11 @@ public class Conexao {
     public Conexao() {
 
         BasicDataSource basicDataSource = new BasicDataSource();
-        basicDataSource.setUrl(System.getenv("DB_URL"));
-        basicDataSource.setUsername(System.getenv("DB_USER"));
-        basicDataSource.setPassword(System.getenv("DB_PASS"));
+        basicDataSource.setUrl("jdbc:mysql://localhost:3306/hardvision?useSSL=false&serverTimezone=UTC");
+        basicDataSource.setUsername("root");
+        basicDataSource.setPassword("meshnapearlcave2412");
         basicDataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+
 
         this.conexao = basicDataSource;
     }
