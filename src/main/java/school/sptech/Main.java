@@ -18,13 +18,17 @@ public class Main {
     private static int leituraAtual = 0;
 
     private static final Integer METRICA_DOWNLOAD_ID = 1;
-    private static final Integer ALERTA_DOWNLOAD_ID = 1;
+    private static  Integer ALERTA_DOWNLOAD_ID = null;
 
     private static final Integer METRICA_UPLOAD_ID = 2;
-    private static final Integer ALERTA_UPLOAD_ID = 2;
+    private static  Integer ALERTA_UPLOAD_ID = null;
 
-    private static final Integer METRICA_LATENCIA_ID = 3;
-    private static final Integer ALERTA_LATENCIA_ID = 3;
+
+    private static final Integer METRICA_THROUGHPUT_ID = 3;
+    private static  Integer ALERTA_THROUGHPUT_ID = null;
+
+    private static final Integer METRICA_LATENCIA_ID = 4;
+    private static  Integer ALERTA_LATENCIA_ID = null;
 
     private static Integer buscarOuCadastrarId(JdbcTemplate template, String selectSql, String insertSql, String valorBusca, Object... insertParams) {
 
@@ -55,6 +59,15 @@ public class Main {
         }
     }
 
+    private static Double buscarMetrica(JdbcTemplate template, String selectSql, Integer valorBusca){
+        List<Double> min = template.query(
+                selectSql,
+                new Object[]{valorBusca},
+                (rs, rowNum) -> rs.getDouble(1)
+        );
+
+        return min.get(0);
+    }
 
     public static void main(String[] args) {
 
@@ -236,41 +249,74 @@ public class Main {
         }
 
         String scriptDML = """
-            INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (1, 'Rua das Flores', '123', 'Avenida', 'São Paulo', 'SP', '12345678', 'Apto 101');
-            INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (2, 'Rua da Paz', '456', 'Beco', 'Rio de Janeiro', 'RJ', '23456789', 'Casa 10');
-            INSERT IGNORE INTO endereco (idEndereco, rua, numero, logradouro, cidade, uf, cep, complemento) VALUES (3, 'Avenida Brasil', '789', 'Centro', 'Belo Horizonte', 'MG', '34567890', NULL);
+-- ===========================================================
+-- INSERÇÃO DE DADOS DE EXEMPLO
+-- ===========================================================
 
-            INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, token) VALUES (1, 'Empresa A Ltda', 'Empresa A', '12345678000199', 1, 'ABCDE');
-            INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, token) VALUES (2, 'Empresa B S.A.', 'Empresa B', '98765432000110', 2, 'XYZ12');
-            INSERT IGNORE INTO empresa (idEmpresa, razaoSocial, nomeFantasia, cnpj, fkEndereco, token) VALUES (3, 'Empresa C', 'Empresa C', '19283746000188', 3, 'PQR34');
+INSERT IGNORE INTO endereco (cep, cidade, logradouro, numero, uf, complemento) VALUES
+('12345678', 'São Paulo', 'Rua das Flores', '123', 'SP', 'Apto 101'),
+('23456789', 'Rio de Janeiro', 'Rua da Paz', '456', 'RJ', 'Casa 10'),
+('34567890', 'Belo Horizonte', 'Avenida Brasil', '789', 'MG', NULL);
 
-            INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (1, 'Linux', '20.04', 'Ubuntu');
-            INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (2, 'Windows', '10 Pro', 'Microsoft');
-            INSERT IGNORE INTO sistemaOperacional (idSistema, tipo, versao, distribuicao) VALUES (3, 'MacOS', '11.3', 'Apple');
+INSERT IGNORE INTO empresa (fkEndereco, razaoSocial, nomeFantasia, cnpj, token) VALUES
+(1, 'Empresa A LTDA', 'Empresa A', '12345678000199', 'ABCDE'),
+(2, 'Empresa B S.A.', 'Empresa B', '98765432000110', 'XYZ12'),
+(3, 'Empresa C LTDA', 'Empresa C', '19283746000188', 'PQR34');
 
-            INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (1, 1, 1, '00:1A:2B:3C:4D:5E', 'Sala 101');
-            INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (2, 2, 2, '00:5F:6G:7H:8I:9J', 'Sala 202');
-            INSERT IGNORE INTO maquina (idMaquina, fkEmpresa, fkSistema, macAddress, localizacao) VALUES (3, 3, 3, '01:2A:3B:4C:5D:6E', 'Sala 303');
+INSERT IGNORE INTO tipo (permissao) VALUES
+('Admin'),
+('Membro');
 
-            INSERT IGNORE INTO tipo (idTipo, permissao) VALUES (1, 'Admin');
-            INSERT IGNORE INTO tipo (idTipo, permissao) VALUES (2, 'Membro');
+INSERT IGNORE INTO usuario (fkEmpresa, fkTipo, nome, email, senha, cpf, telefone) VALUES
+(1, 1, 'João Silva', 'joao@empresaA.com', 'senha123', '11122233344', '11988887777'),
+(2, 2, 'Maria Souza', 'maria@empresaB.com', 'senha456', '55566677788', '21999998888'),
+(3, 2, 'Pedro Lima', 'pedro@empresaC.com', 'senha789', '99900011122', '31977776666');
 
-            INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (1, 'Uso de CPU', '%', 20, 85);
-            INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (2, 'Uso de Memória', '%', 5, 75);
-            INSERT IGNORE INTO metricaComponente (idMetrica, nome, medida, min, max) VALUES (3, 'Uso de Disco', '%', 0, 90);
+INSERT IGNORE INTO sistemaOperacional (tipo, versao, distribuicao) VALUES
+('Linux', '20.04', 'Ubuntu'),
+('Windows', '11 Pro', 'Microsoft'),
+('MacOS', '13.0', 'Apple');
 
-            INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (1, 'Velocidade de Download', 'Mbps', 0, 1000);
-            INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (2, 'Velocidade de Upload', 'Mbps', 0, 1000);
-            INSERT IGNORE INTO metricaRede (idMetricaRede, nome, medida, min, max) VALUES (3, 'Latência', 'ms', 0, 300);
+INSERT IGNORE INTO maquina (fkEmpresa, fkSistema, macAddress, localizacao) VALUES
+(1, 1, '00:1A:2B:3C:4D:5E', 'Sala 101'),
+(2, 2, '00:5F:6A:7B:8C:9D', 'Sala 202'),
+(3, 3, '01:2A:3B:4C:5D:6E', 'Sala 303');
 
-            INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (1, 1, 'Normal');
-            INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (2, 2, 'Atenção');
-            INSERT IGNORE INTO alertaRede (idAlertaRede, fkMetricaRede, estado) VALUES (3, 3, 'Crítico');
+INSERT IGNORE INTO maquina (fkEmpresa, fkSistema, macAddress, localizacao) VALUES
+(1, 1, '00:1A:2B:3C:4D:6E', 'Sala 105');
 
-            INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (1, 'Adaptador Ethernet Intel', 'eth0', 1);
-            INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (2, 'Placa de Rede Wi-Fi TP-Link', 'wlan0', 2);
-            INSERT IGNORE INTO componenteRede (idComponenteRede, nome, interfaceRede, fkMetricaRede) VALUES (3, 'Interface Virtual VPN', 'tun0', 3);
-            """;
+INSERT IGNORE INTO metricaComponente (fkEmpresa, nome, medida, min, max) VALUES
+(1, 'Uso de CPU', '%', 20, 85),
+(1, 'Uso de Memória', '%', 10, 75),
+(1, 'Uso de Disco', '%', 0, 90);
+
+INSERT IGNORE INTO componente (tipo, modelo, fabricante, capacidade, fkMetrica) VALUES
+('RAM', 'Vengeance LPX', 'Corsair', '16GB', 2),
+('Disco', '978 EVO Plus', 'Samsung', '1TB', 3),
+('CPU Núcleo 1', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 2', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 3', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 4', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 5', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 6', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 7', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1),
+('CPU Núcleo 8', 'Ryzen 5 5600X', 'AMD', '3.7GHz', 1);
+
+INSERT IGNORE INTO metricaRede (fkEmpresa, nome, medida, min, max) VALUES
+(1, 'Velocidade de Download', 'Mbps', 0, 1000),
+(1, 'Velocidade de Upload', 'Mbps', 0, 1000),
+(1, 'Latência', 'ms', 0, 300);
+
+INSERT IGNORE INTO componenteRede (nome, interfaceRede, fkMetricaRede) VALUES
+('Adaptador Ethernet Intel', 'eth0', 1),
+('Placa de Rede Wi-Fi TP-Link', 'wlan0', 2),
+('Interface Virtual VPN', 'tun0', 3);
+
+INSERT IGNORE INTO incidente (fkFuncionario, fkEmpresa, titulo, descricao) VALUES
+(1, 1, 'Falha no servidor', 'Servidor principal não responde'),
+(2, 2, 'Rede lenta', 'Usuários reportam lentidão'),
+(3, 3, 'Erro de login', 'Falha no acesso ao sistema');
+""";
 
         try {
             for (String comando : scriptDML.split(";")) {
@@ -346,6 +392,7 @@ public class Main {
 
                         Double throughputMbps = (throughputTotalBytesPorSegundo / 1024.0 / 1024.0) * 8.0;
 
+
                         if (throughputMbps < 0 || bytesRecebidosAnterior == 0) {
                             throughputMbps = 0.0;
                         }
@@ -377,10 +424,35 @@ public class Main {
                                 "SELECT idComponenteRede FROM componenteRede WHERE nome = ?",
                                 "INSERT INTO componenteRede (nome, interfaceRede, fkMetricaRede) VALUES (?, ?, ?)",
                                 nomeInterface,
-                                nomeInterface, nomeInterface, METRICA_DOWNLOAD_ID
+                                nomeInterface, nomeInterface, METRICA_THROUGHPUT_ID
                         );
 
-                        if (fkMaquina != null && fkComponenteRede != null && fkMetricaRede != null && fkAlertaRede != null) {
+                        Double metricaMin = buscarMetrica(template,
+                                "SELECT min FROM metricaRede join componenteRede on fkMetricaRede " +
+                                        " = idMetricaRede WHERE idComponenteRede = ?", fkComponenteRede);
+
+                        if(throughputMbps < metricaMin){
+                            template.update("""
+                                    insert into alertaRede (fkMetricaRede, estado) values(?, 'Crítico')""",
+                                    METRICA_THROUGHPUT_ID);
+
+                            List<Integer> id = template.query(
+                                    """
+                                            SELECT idAlertaRede FROM alertaRede ORDER BY idAlertaRede DESC LIMIT 1; """,
+                                    (rs, rowNum) -> rs.getInt(1)
+                            );
+
+                            fkAlertaRede = id.get(0);
+                        }
+
+                        System.out.println(metricaMin);
+
+                        if (fkMaquina != null && fkComponenteRede != null && fkMetricaRede != null) {
+                            String descricao = "Rede saudável";
+
+                            if(fkAlertaRede != null){
+                                descricao = "Sua rede está com a velocidade lenta. Verifique-a!";
+                            }
 
                             Double mbEnviados = (double) bytesEnviadosAtual / 1024.0 / 1024.0;
                             Double mbRecebidos = (double) bytesRecebidosAtual / 1024.0 / 1024.0;
@@ -390,8 +462,8 @@ public class Main {
                             template.update("""
                             INSERT INTO logMonitoramentoRede (
                             fkMaquina, fkComponenteRede, fkMetricaRede, fkAlertaRede,
-                            ipv4, velocidadeMbps, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                            ipv4, velocidadeMbps, mbEnviados, mbRecebidos, pacotesEnviados, pacotesRecebidos, descricao
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                                  """,
                                     fkMaquina,
                                     fkComponenteRede,
@@ -402,7 +474,8 @@ public class Main {
                                     mbEnviados,
                                     mbRecebidos,
                                     pacotesEnviados,
-                                    pacotesRecebidos
+                                    pacotesRecebidos,
+                                    descricao
                             );
 
 
@@ -433,7 +506,7 @@ public class Main {
                         }
                     }
                 }
-                Thread.sleep(5000);
+                Thread.sleep(2000);
             } catch (EmptyResultDataAccessException e) {
                 System.err.println("\n\n--- ERRO CRÍTICO: METRICA OU ALERTA NÃO ENCONTRADO NA ITERAÇÃO " + leituraAtual + " ---");
                 System.err.println("Causa: Este erro foi corrigido com a alteração das constantes. Se ainda ocorrer, verifique a tabela 'maquina' ou 'componenteRede'.");
