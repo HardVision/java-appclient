@@ -7,6 +7,9 @@ import com.github.britooo.looca.api.util.Conversor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import com.slack.api.Slack;
+import com.slack.api.methods.SlackApiException;
+import com.slack.api.methods.response.chat.ChatPostMessageResponse;
 
 import java.util.List;
 
@@ -69,19 +72,78 @@ public class Main {
         return min.get(0);
     }
 
+    public static void enviarMensagemSlack(JdbcTemplate template, Integer idMaquina, Integer idMetrica, Integer idLog) {
+        String token = System.getenv("SLACK_BOT"); // token do bot
+        Slack slack = Slack.getInstance();
+
+        // Buscar dados do log
+        List<String> mensagem = template.query(
+                """
+                SELECT
+                    m.macAddress,
+                    c.nome AS componente,
+                    lm.dtHora,
+                    lm.velocidadeMbps,
+                    lm.descricao AS descricaoLog,
+                    ac.estado
+                FROM logMonitoramentoRede lm
+                JOIN maquina m ON lm.fkMaquina = m.idMaquina
+                JOIN componenteRede c ON lm.fkComponenteRede = c.idComponenteRede
+                JOIN alertaRede ac ON lm.fkAlertaRede = ac.idAlertaRede
+                WHERE lm.fkMaquina = ?
+                  AND lm.fkMetricaRede = ?
+                  AND lm.idMonitoramentoRede = ?
+                """,
+                (rs, rowNum) -> String.format(
+                        "🚨 *Alerta Detectado!* 🚨\n" +
+                                "*Máquina:* `%s`\n" +
+                                "*Componente:* `%s`\n" +
+                                "*Horário:* `%s`\n" +
+                                "*Valor:* `%s`\n" +
+                                "*Descrição:* %s\n" +
+                                "*Estado:* `%s`",
+                        rs.getString("macAddress"),
+                        rs.getString("componente"),
+                        rs.getString("dtHora"),
+                        rs.getString("velocidadeMbps"),
+                        rs.getString("descricaoLog"),
+                        rs.getString("estado")
+                ),
+                idMaquina, idMetrica, idLog
+        );
+
+        if (mensagem.isEmpty()) {
+            System.out.println("Nenhuma mensagem encontrada para enviar.");
+            return;
+        }
+
+        String texto = mensagem.get(0); // sempre retorna 1 linha
+
+        try {
+            ChatPostMessageResponse response = slack.methods(token).chatPostMessage(req -> req
+                    .channel("#alertas-rede") // <- coloque o canal aqui
+                    .text(texto)
+            );
+
+            System.out.println("Mensagem enviada! Timestamp = " + response.getTs());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) {
 
-        Looca looca = new Looca();
-        Rede rede = looca.getRede();
+    Looca looca = new Looca();
+    Rede rede = looca.getRede();
 
-        List<RedeInterface> interfaces = rede.getGrupoDeInterfaces().getInterfaces();
+    List<RedeInterface> interfaces = rede.getGrupoDeInterfaces().getInterfaces();
 
-        Conexao conexao = new Conexao();
-        JdbcTemplate template = new JdbcTemplate(conexao.getConexao());
+    Conexao conexao = new Conexao();
+    JdbcTemplate template = new JdbcTemplate(conexao.getConexao());
 
-        System.out.println("API INICIADA - CONECTANDO COM O BANCO DE DADOS HARDVISION\n\n");
+    System.out.println("API INICIADA - CONECTANDO COM O BANCO DE DADOS HARDVISION\n\n");
 
-        String scriptSQL = """
+    String scriptSQL = """
             CREATE TABLE IF NOT EXISTS endereco (
                 idEndereco INT PRIMARY KEY auto_increment,
                 rua VARCHAR(45) NOT NULL,
@@ -432,6 +494,7 @@ INSERT IGNORE INTO incidente (fkFuncionario, fkEmpresa, titulo, descricao) VALUE
                                         " = idMetricaRede WHERE idComponenteRede = ?", fkComponenteRede);
 
                         if(throughputMbps < metricaMin){
+                            System.out.println("Alerta detectado!");
                             template.update("""
                                     insert into alertaRede (fkMetricaRede, estado) values(?, 'Crítico')""",
                                     METRICA_THROUGHPUT_ID);
@@ -477,6 +540,20 @@ INSERT IGNORE INTO incidente (fkFuncionario, fkEmpresa, titulo, descricao) VALUE
                                     pacotesRecebidos,
                                     descricao
                             );
+
+                            if (fkAlertaRede != null){
+                                Integer idLog = buscarOuCadastrarId(
+                                        template,
+                                        "SELECT idMonitoramentoRede FROM logMonitoramentoRede join maquina on FkMaquina = idMaquina WHERE macAddress = " +
+                                                "? ORDER BY idMonitoramentoRede DESC LIMIT 1",
+                                        "",
+                                        macAddressMaquinaAtual,
+                                        FK_EMPRESA_FIXO, FK_SISTEMA_FIXO, macAddressMaquinaAtual
+                                );
+
+                                System.out.println("Id do log: " + idLog);
+                                enviarMensagemSlack(template, fkMaquina, fkMetricaRede, idLog);
+                            }
 
 
                             String linha0 = formatarLinha("Leitura " + leituraAtual, largura);
